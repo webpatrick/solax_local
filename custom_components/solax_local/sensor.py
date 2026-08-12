@@ -228,8 +228,15 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
         self._attr_state_class = state_class
         self._attr_device_info = device_info
 
+        # Track the config entry id so offsets can be persisted per-entry
+        self._entry_id = entry_id
+
         # Restored value placeholder (filled in async_added_to_hass)
         self._restored_native_value = None
+
+        # Offset to keep cumulative totals monotonic (device_value + offset = displayed_value)
+        self._offset: float | None = None
+        self._offset_persisted: bool = False
 
     async def async_added_to_hass(self) -> None:
         """Restore the last state when Home Assistant starts.
@@ -247,15 +254,62 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
             except (TypeError, ValueError):
                 self._restored_native_value = last_state.state
 
+        # Load persisted offset if available
+        offsets = self.hass.data.get(DOMAIN, {}).get("offsets", {})
+        entry_offsets = offsets.get(self._entry_id, {}) if offsets is not None else {}
+        # Offsets are stored as mapping key->float
+        off = entry_offsets.get(self._key)
+        if off is not None:
+            try:
+                self._offset = float(off)
+                self._offset_persisted = True
+            except (TypeError, ValueError):
+                self._offset = None
+                self._offset_persisted = False
+
     @property
     def native_value(self):
         # If coordinator has no data yet, use restored value if available
         if self.coordinator.data is None:
             return self._restored_native_value
 
-        value = self.coordinator.data.get(self._key)
+        device_value = self.coordinator.data.get(self._key)
 
-        # If inverter is offline, keep previously restored or last known cumulative values
+        # Handle cumulative sensors with offset so they never decrease
+        if self._key in ("prod_total", "prod_auj") and device_value is not None:
+            # Ensure numeric
+            try:
+                device_value_num = float(device_value)
+            except (TypeError, ValueError):
+                return device_value
+
+            # Apply offset if present
+            displayed = device_value_num + (self._offset or 0.0)
+
+            # If we have a restored value and displayed is less than restored, device likely reset -> compute new offset
+            if self._restored_native_value is not None and displayed < float(self._restored_native_value):
+                # New offset required to keep monotonic behavior
+                new_offset = float(self._restored_native_value) - device_value_num
+                # Only update if it actually increases displayed value
+                if new_offset != (self._offset or 0.0):
+                    self._offset = new_offset
+                    # Persist the offset asynchronously
+                    try:
+                        self.hass.async_create_task(self._async_persist_offset())
+                    except Exception:
+                        # Don't let persistence failures break sensor read path
+                        pass
+                displayed = device_value_num + (self._offset or 0.0)
+
+            # If inverter is offline and device reports 0/None, prefer restored value
+            if not self.coordinator.data.get("online") and (device_value_num in (0.0,)) and self._restored_native_value is not None:
+                return self._restored_native_value
+
+            return displayed
+
+        # Non-cumulative sensors or missing device value: fall back to previous logic
+        value = device_value
+
         if not self.coordinator.data.get("online"):
             if self._key in ("prod_total", "prod_auj"):
                 # Prefer the in-memory previous value from coordinator if available
@@ -274,3 +328,27 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
     @property
     def should_poll(self) -> bool:
         return False
+
+    async def _async_persist_offset(self) -> None:
+        """Persist the current offset for this entry/key to the integration storage."""
+        try:
+            store_map = self.hass.data.get(DOMAIN, {})
+            if store_map is None:
+                return
+            offsets = store_map.setdefault("offsets", {})
+            entry_offsets = offsets.setdefault(self._entry_id, {})
+            if self._offset is None:
+                # Remove existing offset if present
+                if self._key in entry_offsets:
+                    entry_offsets.pop(self._key)
+            else:
+                entry_offsets[self._key] = float(self._offset)
+
+            # Persist using helper in __init__.py
+            # Import locally to avoid circular import at module load
+            from . import async_save_offsets
+            await async_save_offsets(self.hass)
+        except Exception:
+            # Persistence should not break runtime behavior
+            _LOGGER = __import__("logging").getLogger(__name__)
+            _LOGGER.exception("Failed to persist solax offset for %s:%s", self._entry_id, self._key)
