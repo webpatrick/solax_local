@@ -1,8 +1,8 @@
 {
   "domain": "solax_local",
   "name": "SolaX Local",
-  "version": "1.2.2",
-  "documentation": "https://example.com/solax-local",
+  "version": "2.0.0",
+  "documentation": "https://github.com/webpatrick/solax-local",
   "requirements": [],
   "dependencies": [],
   "codeowners": ["@solax"],
