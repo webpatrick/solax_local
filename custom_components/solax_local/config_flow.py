@@ -99,7 +99,12 @@ class SolaxOptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry) -> None:
         """Initialize the options flow with the config entry."""
-        super().__init__(config_entry)
+        self._config_entry = config_entry
+
+    @property
+    def config_entry(self):
+        """Return the config entry for this options flow."""
+        return self._config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
