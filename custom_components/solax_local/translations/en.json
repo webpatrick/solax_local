@@ -44,6 +44,15 @@
       "switch": "State"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Scan interval (seconds)"
+        }
+      }
+    }
+  },
   "services": {
     "refresh_all": {
       "name": "Refresh all inverters",

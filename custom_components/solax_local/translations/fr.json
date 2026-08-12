@@ -44,6 +44,15 @@
       "switch": "État"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Intervalle de scan (secondes)"
+        }
+      }
+    }
+  },
   "services": {
     "refresh_all": {
       "name": "Actualiser tous les onduleurs",

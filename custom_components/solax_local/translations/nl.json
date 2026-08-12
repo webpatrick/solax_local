@@ -44,6 +44,15 @@
       "switch": "Status"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Scaninterval (seconden)"
+        }
+      }
+    }
+  },
   "services": {
     "refresh_all": {
       "name": "Alle omvormers vernieuwen",
