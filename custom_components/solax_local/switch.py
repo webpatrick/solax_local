@@ -26,7 +26,7 @@ class SolaxSwitch(CoordinatorEntity[SolaxDataUpdateCoordinator], SwitchEntity):
         self._attr_translation_key = "switch"
         self._attr_name = "State"
         self._attr_unique_id = f"{entry_id}_switch"
-        self._attr_has_entity_name = True
+        self._attr_has_entity_name = False
         # Attach entity to inverter device by serial
         self._attr_device_info = {
             "identifiers": {(DOMAIN, coordinator.serial)},
