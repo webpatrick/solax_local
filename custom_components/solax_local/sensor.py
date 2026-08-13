@@ -289,47 +289,50 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
             except (TypeError, ValueError):
                 return device_value
 
-            # For daily production, reset the day offset at midnight so the sensor can start at 0 again.
+            # Daily production resets only at midnight, never because the inverter enters WaitMode.
             if self._key == "prod_auj":
                 current_day = datetime.now(timezone.utc).date().isoformat()
                 if self._last_day is None:
                     self._last_day = current_day
                 elif current_day != self._last_day:
+                    # New calendar day: reset the daily total to zero and clear cumulative offset.
                     self._last_day = current_day
                     self._offset = 0.0
                     self._restored_native_value = 0.0
+                    self._offset_persisted = False
                     try:
                         self.hass.async_create_task(self._async_persist_offset())
                     except Exception:
                         pass
+                    return 0.0 if device_value_num <= 0 else device_value_num
 
-            # Apply offset if present
+                # Same-day behavior: a zero raw value or a smaller value does not mean a reset.
+                if self._restored_native_value is not None and device_value_num < float(self._restored_native_value):
+                    return self._restored_native_value
+
+                # A same-day increase is accepted; otherwise keep last known value.
+                if self._restored_native_value is not None and device_value_num == 0.0:
+                    return self._restored_native_value
+
+                self._restored_native_value = device_value_num
+                return device_value_num
+
+            # Total production keeps growing and never decreases.
             displayed = device_value_num + (self._offset or 0.0)
 
-            # If we have a restored value and displayed is less than restored, device likely reset -> compute new offset
             if self._restored_native_value is not None and displayed < float(self._restored_native_value):
-                # Daily production resets at midnight, so do not create a positive offset across a day rollover.
-                if self._key == "prod_auj":
-                    displayed = device_value_num
-                else:
-                    # New offset required to keep monotonic behavior
-                    new_offset = float(self._restored_native_value) - device_value_num
-                    # Only update if it actually increases displayed value
-                    if new_offset != (self._offset or 0.0):
-                        self._offset = new_offset
-                        # Persist the offset asynchronously
-                        try:
-                            self.hass.async_create_task(self._async_persist_offset())
-                        except Exception:
-                            # Don't let persistence failures break sensor read path
-                            pass
-                    displayed = device_value_num + (self._offset or 0.0)
+                new_offset = float(self._restored_native_value) - device_value_num
+                if new_offset != (self._offset or 0.0):
+                    self._offset = new_offset
+                    try:
+                        self.hass.async_create_task(self._async_persist_offset())
+                    except Exception:
+                        pass
+                displayed = device_value_num + (self._offset or 0.0)
 
-            # Keep the last displayed value available for restore and next comparison.
             self._restored_native_value = displayed
 
-            # If inverter is offline and device reports 0/None, prefer restored value
-            if not self.coordinator.data.get("online") and (device_value_num in (0.0,)) and self._restored_native_value is not None:
+            if not self.coordinator.data.get("online") and device_value_num == 0.0 and self._restored_native_value is not None:
                 return self._restored_native_value
 
             return displayed
