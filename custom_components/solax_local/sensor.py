@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTemperature, UnitOfElectricCurrent, UnitOfElectricPotential, UnitOfFrequency
 from homeassistant.core import HomeAssistant
@@ -237,6 +239,7 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
         # Offset to keep cumulative totals monotonic (device_value + offset = displayed_value)
         self._offset: float | None = None
         self._offset_persisted: bool = False
+        self._last_day: str | None = None
 
     async def async_added_to_hass(self) -> None:
         """Restore the last state when Home Assistant starts.
@@ -267,6 +270,9 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
                 self._offset = None
                 self._offset_persisted = False
 
+        if last_state is not None and last_state.last_updated is not None:
+            self._last_day = last_state.last_updated.astimezone(timezone.utc).date().isoformat()
+
     @property
     def native_value(self):
         # If coordinator has no data yet, use restored value if available
@@ -283,23 +289,44 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
             except (TypeError, ValueError):
                 return device_value
 
+            # For daily production, reset the day offset at midnight so the sensor can start at 0 again.
+            if self._key == "prod_auj":
+                current_day = datetime.now(timezone.utc).date().isoformat()
+                if self._last_day is None:
+                    self._last_day = current_day
+                elif current_day != self._last_day:
+                    self._last_day = current_day
+                    self._offset = 0.0
+                    self._restored_native_value = 0.0
+                    try:
+                        self.hass.async_create_task(self._async_persist_offset())
+                    except Exception:
+                        pass
+
             # Apply offset if present
             displayed = device_value_num + (self._offset or 0.0)
 
             # If we have a restored value and displayed is less than restored, device likely reset -> compute new offset
             if self._restored_native_value is not None and displayed < float(self._restored_native_value):
-                # New offset required to keep monotonic behavior
-                new_offset = float(self._restored_native_value) - device_value_num
-                # Only update if it actually increases displayed value
-                if new_offset != (self._offset or 0.0):
-                    self._offset = new_offset
-                    # Persist the offset asynchronously
-                    try:
-                        self.hass.async_create_task(self._async_persist_offset())
-                    except Exception:
-                        # Don't let persistence failures break sensor read path
-                        pass
-                displayed = device_value_num + (self._offset or 0.0)
+                # Daily production resets at midnight, so do not create a positive offset across a day rollover.
+                if self._key == "prod_auj":
+                    displayed = device_value_num
+                else:
+                    # New offset required to keep monotonic behavior
+                    new_offset = float(self._restored_native_value) - device_value_num
+                    # Only update if it actually increases displayed value
+                    if new_offset != (self._offset or 0.0):
+                        self._offset = new_offset
+                        # Persist the offset asynchronously
+                        try:
+                            self.hass.async_create_task(self._async_persist_offset())
+                        except Exception:
+                            # Don't let persistence failures break sensor read path
+                            pass
+                    displayed = device_value_num + (self._offset or 0.0)
+
+            # Keep the last displayed value available for restore and next comparison.
+            self._restored_native_value = displayed
 
             # If inverter is offline and device reports 0/None, prefer restored value
             if not self.coordinator.data.get("online") and (device_value_num in (0.0,)) and self._restored_native_value is not None:
