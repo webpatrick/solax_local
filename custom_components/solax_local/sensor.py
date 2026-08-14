@@ -221,10 +221,9 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
         super().__init__(coordinator)
         self._key = key
         self._attr_translation_key = key
-        # Let Home Assistant resolve the visible entity name from translation files.
-        # With has_entity_name=True, HA will show the translated name while keeping the
-        # inverter/device name as the parent label.
-        self._attr_name = None
+        # Keep a fallback English name so the entity label is never empty while HA
+        # resolves the translated name for the current interface language.
+        self._attr_name = name
         self._attr_unique_id = f"{entry_id}_{key}"
         self._attr_has_entity_name = True
         self._attr_device_class = device_class

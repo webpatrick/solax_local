@@ -24,7 +24,7 @@ class SolaxSwitch(CoordinatorEntity[SolaxDataUpdateCoordinator], SwitchEntity):
     def __init__(self, coordinator, entry_id, model: str) -> None:
         super().__init__(coordinator)
         self._attr_translation_key = "switch"
-        self._attr_name = None
+        self._attr_name = "State"
         self._attr_unique_id = f"{entry_id}_switch"
         self._attr_has_entity_name = True
         self._attr_has_entity_name = False
