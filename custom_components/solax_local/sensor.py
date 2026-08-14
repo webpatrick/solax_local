@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from homeassistant.util import dt as dt_util
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import UnitOfEnergy, UnitOfPower, UnitOfTemperature, UnitOfElectricCurrent, UnitOfElectricPotential, UnitOfFrequency
@@ -273,7 +274,12 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
                 self._offset_persisted = False
 
         if last_state is not None and last_state.last_updated is not None:
-            self._last_day = last_state.last_updated.astimezone(timezone.utc).date().isoformat()
+            # Use Home Assistant local timezone when restoring last day
+            try:
+                self._last_day = dt_util.as_local(last_state.last_updated).date().isoformat()
+            except Exception:
+                # Fallback to UTC if anything goes wrong
+                self._last_day = last_state.last_updated.astimezone(timezone.utc).date().isoformat()
 
     @property
     def native_value(self):
@@ -293,7 +299,8 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
 
             # Daily production resets only at midnight, never because the inverter enters WaitMode.
             if self._key == "prod_auj":
-                current_day = datetime.now(timezone.utc).date().isoformat()
+                # Use Home Assistant local timezone now() so reset occurs at HA local midnight
+                current_day = dt_util.now().date().isoformat()
                 if self._last_day is None:
                     self._last_day = current_day
                 elif current_day != self._last_day:
