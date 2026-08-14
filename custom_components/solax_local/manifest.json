@@ -1,7 +1,7 @@
 {
   "domain": "solax_local",
   "name": "SolaX Local",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "documentation": "https://github.com/webpatrick/solax-local",
   "requirements": [],
   "dependencies": [],

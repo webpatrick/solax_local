@@ -106,7 +106,7 @@ Or manually:
 
 ### Update interval
 
-By default, the integration polls the inverter every **300 seconds** (5 minutes). You can adjust this during configuration.
+By default, the integration polls the inverter every **300 seconds** (5 minutes). You can adjust this in configuration.
 
 ### DIAGNOSTIC entities
 
@@ -138,6 +138,7 @@ To display them: **Settings** > **Devices & Services** > Select the device > **S
 
 ## 📦 Versions
 
+- **......** (2026-08-14) - Several updates to the fork
 - **v1.2.2** (2026-07-22) - Added custom icon for HACS
 - **v1.2.1** (2026-07-22) - Added refresh_all service to refresh all inverters
 - **v1.2.0** (2026-07-22) - Added MPPT voltage/current sensors and inverter metrics
