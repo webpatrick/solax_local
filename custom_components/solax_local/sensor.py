@@ -221,7 +221,8 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
         super().__init__(coordinator)
         self._key = key
         self._attr_translation_key = key
-        self._attr_name = name
+        # Do not hardcode English names here: let Home Assistant use the translation files.
+        self._attr_name = None
         self._attr_unique_id = f"{entry_id}_{key}"
         self._attr_has_entity_name = False
         self._attr_device_class = device_class
