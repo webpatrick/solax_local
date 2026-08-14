@@ -304,38 +304,39 @@ class SolaxSensor(CoordinatorEntity[SolaxDataUpdateCoordinator], SensorEntity, R
                         self.hass.async_create_task(self._async_persist_offset())
                     except Exception:
                         pass
-                    return 0.0 if device_value_num <= 0 else device_value_num
+                    return 0.0
 
                 # Same-day behavior: a zero raw value or a smaller value does not mean a reset.
-                if self._restored_native_value is not None and device_value_num < float(self._restored_native_value):
-                    return self._restored_native_value
-
-                # A same-day increase is accepted; otherwise keep last known value.
-                if self._restored_native_value is not None and device_value_num == 0.0:
-                    return self._restored_native_value
+                if self._restored_native_value is not None:
+                    if device_value_num == 0.0:
+                        return self._restored_native_value
+                    if device_value_num < float(self._restored_native_value):
+                        return self._restored_native_value
 
                 self._restored_native_value = device_value_num
                 return device_value_num
 
             # Total production keeps growing and never decreases.
-            displayed = device_value_num + (self._offset or 0.0)
+            # IMPORTANT: only apply an offset when the raw value truly dropped, not on every read.
+            if self._restored_native_value is not None:
+                previous_displayed = float(self._restored_native_value)
+                if device_value_num < previous_displayed:
+                    # The inverter reset its total value; keep the old total continuity.
+                    new_offset = previous_displayed - device_value_num
+                    if new_offset != (self._offset or 0.0):
+                        self._offset = new_offset
+                        try:
+                            self.hass.async_create_task(self._async_persist_offset())
+                        except Exception:
+                            pass
+                    displayed = device_value_num + (self._offset or 0.0)
+                    self._restored_native_value = displayed
+                    return displayed
 
-            if self._restored_native_value is not None and displayed < float(self._restored_native_value):
-                new_offset = float(self._restored_native_value) - device_value_num
-                if new_offset != (self._offset or 0.0):
-                    self._offset = new_offset
-                    try:
-                        self.hass.async_create_task(self._async_persist_offset())
-                    except Exception:
-                        pass
-                displayed = device_value_num + (self._offset or 0.0)
-
-            self._restored_native_value = displayed
-
-            if not self.coordinator.data.get("online") and device_value_num == 0.0 and self._restored_native_value is not None:
-                return self._restored_native_value
-
-            return displayed
+            # No reset: the raw cumulative value should be shown as-is.
+            self._offset = 0.0
+            self._restored_native_value = device_value_num
+            return device_value_num
 
         # Non-cumulative sensors or missing device value: fall back to previous logic
         value = device_value
