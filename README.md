@@ -138,7 +138,11 @@ To display them: **Settings** > **Devices & Services** > Select the device > **S
 
 ## 📦 Versions
 
-- **......** (2026-08-14) - Several updates to the fork
+This fork is tuned for the SolaX X1 Micro 2-in-1 inverter family using firmware versions Wi‑Fi 011.00 and DSP 012.00. Compared with the upstream project, the protocol parsing and sensor mapping were adjusted to match the request/response layout used by these units, so the integration works with the firmware variant in use here instead of the generic/default implementation.
+
+Additionally, the cumulative production values are kept stable across short offline periods and Home Assistant restarts. The Total production and Daily production sensors retain their last valid values instead of dropping back to zero when the inverter temporarily reports empty or reset-like values, which avoids misleading resets in the history graphs.
+
+- **2026-08-17** - Fork adjustments for X1 Micro 2-in-1 firmware (Wi‑Fi 011.00 / DSP 012.00), improved model compatibility, and stable handling of Total/Daily production values across offline/restart conditions
 - **v1.2.2** (2026-07-22) - Added custom icon for HACS
 - **v1.2.1** (2026-07-22) - Added refresh_all service to refresh all inverters
 - **v1.2.0** (2026-07-22) - Added MPPT voltage/current sensors and inverter metrics
