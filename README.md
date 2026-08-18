@@ -136,6 +136,12 @@ To display them: **Settings** > **Devices & Services** > Select the device > **S
 - This means the selected model is not recognized
 - Check the selection during configuration
 
+## ✨ What changed in this fork
+
+This fork is specifically aligned with the SolaX X1 Micro 2-in-1 inverter family using firmware versions Wi‑Fi 011.00 and DSP 012.00. Compared with the upstream project, the protocol parsing and sensor mapping were adjusted to match the request/response format used by these units, making the integration work with the firmware variant used in this setup.
+
+In addition, the integration now keeps the Total production and Daily production values stable across short offline periods and Home Assistant restarts. Instead of dropping back to zero when the inverter briefly reports empty or reset-like values, the last valid totals are retained so graphs and history remain accurate.
+
 ## 📦 Versions
 
 This fork is tuned for the SolaX X1 Micro 2-in-1 inverter family using firmware versions Wi‑Fi 011.00 and DSP 012.00. Compared with the upstream project, the protocol parsing and sensor mapping were adjusted to match the request/response layout used by these units, so the integration works with the firmware variant in use here instead of the generic/default implementation.
