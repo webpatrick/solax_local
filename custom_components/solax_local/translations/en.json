@@ -56,7 +56,7 @@
   "services": {
     "refresh_all": {
       "name": "Refresh all inverters",
-      "description": "Force immediate update of all SolaX inverters"
+      "description": "Force an immediate refresh of all configured SolaX inverters."
     }
   }
 }

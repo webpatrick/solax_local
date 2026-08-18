@@ -56,7 +56,7 @@
   "services": {
     "refresh_all": {
       "name": "Actualiser tous les onduleurs",
-      "description": "Force la mise à jour immédiate de tous les onduleurs SolaX"
+      "description": "Force une actualisation immédiate de tous les onduleurs SolaX configurés."
     }
   }
 }

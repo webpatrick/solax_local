@@ -55,8 +55,8 @@
   },
   "services": {
     "refresh_all": {
-      "name": "Alle omvormers vernieuwen",
-      "description": "Forceer een onmiddellijke update van alle SolaX-omvormers"
+      "name": "Alle omvormers verversen",
+      "description": "Forceer een onmiddellijke verversing van alle geconfigureerde SolaX-omvormers."
     }
   }
 }

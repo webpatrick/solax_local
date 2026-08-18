@@ -1,3 +1,3 @@
 refresh_all:
-  name: Actualiser tous les onduleurs
-  description: Force la mise à jour immédiate de tous les onduleurs SolaX
+  name: Refresh all inverters
+  description: Force an immediate refresh of all configured SolaX inverters.
